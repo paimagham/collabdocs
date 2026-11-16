@@ -210,9 +210,11 @@ function Workspace({ user, onLogout }: { user: User; onLogout: () => void }) {
 
   // Push the loaded document into the editor without triggering a save.
   useEffect(() => {
-    if (!editor) return
-    editor.commands.setContent(doc?.content ?? '', { emitUpdate: false })
-    editor.setEditable(Boolean(doc && doc.role !== 'viewer'), false)
+    // The editor is only mounted on the page while a document is open; touching
+    // it before that throws in TipTap (seen in Safari).
+    if (!editor || editor.isDestroyed || !doc) return
+    editor.commands.setContent(doc.content, { emitUpdate: false })
+    editor.setEditable(doc.role !== 'viewer', false)
     // Only when switching documents, not on every save.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, doc?.id])
