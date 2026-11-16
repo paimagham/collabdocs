@@ -1,0 +1,14 @@
+# One-click deploy on Render (free plan): New + > Blueprint > pick this repo.
+services:
+  - type: web
+    name: collabdocs
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22.13.0"
+      - key: GEMINI_API_KEY   # optional: enables the AI assistant
+        sync: false

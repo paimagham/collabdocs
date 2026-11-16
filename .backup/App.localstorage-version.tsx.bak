@@ -1,0 +1,284 @@
+
+import { useEffect, useState } from 'react'
+import { EditorContent, useEditor } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
+import {
+  FileText, Plus, Search, Upload, Share2, Trash2,
+  Bold, Italic, Underline as UnderlineIcon,
+  List, ListOrdered, Heading1, Heading2,
+  Clock, ChevronDown, FilePlus2, Check, Users
+} from 'lucide-react'
+import './App.css'
+
+type Document = {
+  id: string
+  title: string
+  content: string
+  updatedAt: string
+}
+
+const initialDocs: Document[] = [
+  {
+    id: 'welcome',
+    title: 'Welcome to CollabDocs',
+    content: '<h1>Welcome to CollabDocs!</h1><p>Your workspace for creating and organizing documents.</p><h2>Getting started</h2><ul><li>Create a new document</li><li>Format your content</li><li>Import a text or Markdown file</li><li>Share your work with teammates</li></ul><p>Your documents are automatically saved in this browser.</p>',
+    updatedAt: new Date().toISOString()
+  }
+]
+
+function App() {
+  const [docs, setDocs] = useState<Document[]>(() => {
+    try {
+      const saved = localStorage.getItem('collabdocs-documents')
+      return saved ? JSON.parse(saved) : initialDocs
+    } catch {
+      return initialDocs
+    }
+  })
+
+  const [selectedId, setSelectedId] = useState(docs[0]?.id ?? '')
+  const [search, setSearch] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const [titleInput, setTitleInput] = useState('')
+
+  const activeDoc = docs.find(doc => doc.id === selectedId)
+
+  useEffect(() => {
+    localStorage.setItem('collabdocs-documents', JSON.stringify(docs))
+  }, [docs])
+
+  const editor = useEditor({
+    extensions: [StarterKit, Underline],
+    content: activeDoc?.content ?? '<p>Start writing...</p>',
+    onUpdate: ({ editor }) => {
+      const content = editor.getHTML()
+      setDocs(previous => previous.map(doc =>
+        doc.id === selectedId
+          ? { ...doc, content, updatedAt: new Date().toISOString() }
+          : doc
+      ))
+    }
+  }, [selectedId])
+
+  useEffect(() => {
+    if (editor && activeDoc) {
+      editor.commands.setContent(activeDoc.content, { emitUpdate: false })
+    }
+  }, [selectedId, editor])
+
+  function createDocument() {
+    const doc: Document = {
+      id: crypto.randomUUID(),
+      title: 'Untitled document',
+      content: '<h1>Untitled document</h1><p>Start writing your ideas here...</p>',
+      updatedAt: new Date().toISOString()
+    }
+    setDocs(previous => [doc, ...previous])
+    setSelectedId(doc.id)
+    setRenaming(true)
+    setTitleInput(doc.title)
+  }
+
+  function saveTitle() {
+    if (!titleInput.trim()) return
+    setDocs(previous => previous.map(doc =>
+      doc.id === selectedId
+        ? { ...doc, title: titleInput.trim() }
+        : doc
+    ))
+    setRenaming(false)
+  }
+
+  function deleteDocument(id: string) {
+    if (!window.confirm('Delete this document?')) return
+    const remaining = docs.filter(doc => doc.id !== id)
+    setDocs(remaining)
+    if (selectedId === id) setSelectedId(remaining[0]?.id ?? '')
+  }
+
+  function importFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const extension = file.name.split('.').pop()?.toLowerCase()
+    if (!['txt', 'md'].includes(extension ?? '')) {
+      alert('Please upload a .txt or .md file.')
+      event.target.value = ''
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const doc: Document = {
+        id: crypto.randomUUID(),
+        title: file.name.replace(/\.(txt|md)$/i, ''),
+        content: `<h1>${file.name.replace(/\.(txt|md)$/i, '')}</h1><p>${String(reader.result).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')}</p>`,
+        updatedAt: new Date().toISOString()
+      }
+      setDocs(previous => [doc, ...previous])
+      setSelectedId(doc.id)
+    }
+    reader.readAsText(file)
+    event.target.value = ''
+  }
+
+  const filteredDocs = docs.filter(doc =>
+    doc.title.toLowerCase().includes(search.toLowerCase())
+  )
+
+  function formatDate(date: string) {
+    return new Date(date).toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric'
+    })
+  }
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brand-icon"><FileText size={21} /></div>
+          <span>Collab<span className="brand-accent">Docs</span></span>
+        </div>
+
+        <button className="new-button" onClick={createDocument}>
+          <Plus size={18} /> New document
+        </button>
+
+        <div className="sidebar-label">WORKSPACE</div>
+        <div className="workspace-item active">
+          <FileText size={17} /> My documents
+          <span className="count">{docs.length}</span>
+        </div>
+        <div className="workspace-item">
+          <Users size={17} /> Shared with me
+          <span className="coming-soon">Soon</span>
+        </div>
+
+        <div className="sidebar-divider" />
+        <div className="sidebar-label">YOUR DOCUMENTS</div>
+
+        <div className="search-box">
+          <Search size={15} />
+          <input
+            placeholder="Search documents..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="document-list">
+          {filteredDocs.map(doc => (
+            <div
+              key={doc.id}
+              className={`document-item ${selectedId === doc.id ? 'selected' : ''}`}
+              onClick={() => setSelectedId(doc.id)}
+            >
+              <FileText size={16} />
+              <span>{doc.title}</span>
+              <button
+                className="delete-button"
+                title="Delete document"
+                onClick={e => {
+                  e.stopPropagation()
+                  deleteDocument(doc.id)
+                }}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+          {filteredDocs.length === 0 && (
+            <p className="empty-message">No documents found.</p>
+          )}
+        </div>
+
+        <div className="sidebar-footer">
+          <div className="avatar">B</div>
+          <div>
+            <strong>Bhavitha</strong>
+            <small>Personal workspace</small>
+          </div>
+        </div>
+      </aside>
+
+      <main className="main-area">
+        <header className="topbar">
+          <div className="breadcrumb">
+            My documents <span>/</span>
+            <strong>{activeDoc?.title ?? 'No document selected'}</strong>
+          </div>
+          <div className="topbar-actions">
+            <span className="saved-status"><Check size={15} /> Saved locally</span>
+            <button className="share-button" onClick={() => alert('Document sharing is coming in the next implementation step.')}>
+              <Share2 size={16} /> Share
+            </button>
+          </div>
+        </header>
+
+        {activeDoc && editor ? (
+          <section className="editor-area">
+            <div className="document-heading">
+              <div className="title-row">
+                {renaming ? (
+                  <input
+                    className="title-input"
+                    value={titleInput}
+                    autoFocus
+                    onChange={e => setTitleInput(e.target.value)}
+                    onBlur={saveTitle}
+                    onKeyDown={e => e.key === 'Enter' && saveTitle()}
+                  />
+                ) : (
+                  <h1 onClick={() => {
+                    setTitleInput(activeDoc.title)
+                    setRenaming(true)
+                  }}>
+                    {activeDoc.title}
+                  </h1>
+                )}
+                <button className="rename-hint" onClick={() => {
+                  setTitleInput(activeDoc.title)
+                  setRenaming(true)
+                }}>Rename</button>
+              </div>
+              <div className="document-meta">
+                <Clock size={14} /> Last edited {formatDate(activeDoc.updatedAt)}
+              </div>
+            </div>
+
+            <div className="toolbar">
+              <button title="Bold" className={editor.isActive('bold') ? 'tool-active' : ''} onClick={() => editor.chain().focus().toggleBold().run()}><Bold size={17}/></button>
+              <button title="Italic" className={editor.isActive('italic') ? 'tool-active' : ''} onClick={() => editor.chain().focus().toggleItalic().run()}><Italic size={17}/></button>
+              <button title="Underline" className={editor.isActive('underline') ? 'tool-active' : ''} onClick={() => editor.chain().focus().toggleUnderline().run()}><UnderlineIcon size={17}/></button>
+              <span className="tool-divider"/>
+              <button title="Heading 1" className={editor.isActive('heading', {level: 1}) ? 'tool-active' : ''} onClick={() => editor.chain().focus().toggleHeading({level: 1}).run()}><Heading1 size={18}/></button>
+              <button title="Heading 2" className={editor.isActive('heading', {level: 2}) ? 'tool-active' : ''} onClick={() => editor.chain().focus().toggleHeading({level: 2}).run()}><Heading2 size={18}/></button>
+              <span className="tool-divider"/>
+              <button title="Bulleted list" className={editor.isActive('bulletList') ? 'tool-active' : ''} onClick={() => editor.chain().focus().toggleBulletList().run()}><List size={18}/></button>
+              <button title="Numbered list" className={editor.isActive('orderedList') ? 'tool-active' : ''} onClick={() => editor.chain().focus().toggleOrderedList().run()}><ListOrdered size={18}/></button>
+              <span className="toolbar-spacer"/>
+              <label className="upload-button" title="Import a TXT or Markdown file">
+                <Upload size={16}/> Import file
+                <input type="file" accept=".txt,.md,text/plain,text/markdown" hidden onChange={importFile}/>
+              </label>
+            </div>
+
+            <div className="page-background">
+              <div className="document-page">
+                <EditorContent editor={editor} />
+              </div>
+            </div>
+          </section>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-icon"><FilePlus2 size={34}/></div>
+            <h2>Your workspace is ready</h2>
+            <p>Create a document to start capturing your ideas.</p>
+            <button className="new-button" onClick={createDocument}><Plus size={17}/> Create document</button>
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
+
+export default App
