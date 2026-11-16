@@ -1,7 +1,7 @@
 # Submission: CollabDocs
 
 **Candidate:** Saibhavitha Reddy Paimagham
-**Live app:** <add Render URL>
+**Live app:** https://collabdocs-1w6r.onrender.com
 **Walkthrough video:** see `VIDEO_URL.txt`
 **Test accounts:** alice@ajaia.test, bob@ajaia.test, carol@ajaia.test (password: `password123`)
 

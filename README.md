@@ -2,7 +2,7 @@
 
 A lightweight collaborative document editor inspired by Google Docs, built for the Ajaia AI-Native Full Stack Developer assignment.
 
-**Live demo:** `<add your Render URL here>`
+**Live demo:** https://collabdocs-1w6r.onrender.com (free tier: first load after idle can take ~50s)
 
 ## Demo accounts
 
